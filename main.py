@@ -172,6 +172,16 @@ class Image(commands.Cog):
 
     @commands.command()
     async def image(self, ctx, *args, member: discord.Member = None):
+        # Controlla se sono state messe due immagini ed è stato taggato qualcuno
+        if len(ctx.message.attachments) >= 2 and ctx.message.mentions:
+            await ctx.reply("You have to either attach a max of two images or an image with the mention of a user.")
+            return
+
+        # Contralla se le menzioni sono state fatte a dei ruoli. In caso invia un messaggio di errore.
+        if ctx.message.role_mentions:
+            await ctx.reply("You must mention an user.")
+            return
+
         # Creazione della data ora
         now = datetime.now()
         dt_string = now.strftime("%d_%m_%Y_%H_%M_%S")
@@ -191,22 +201,50 @@ class Image(commands.Cog):
         if not ctx.message.attachments:  # Non ci sono file allegati
             image_path = get_image(member_id=member.id)  # L'immagine di sfondo sarà un caracal
 
-        else:  # Ci sono file allegati
-            extension = ctx.message.attachments[0].content_type[6:]  # Viene presa l'estensione del file come stringa
+        elif len(ctx.message.attachments) == 1:  # Ci sono file allegati
+            extension1 = ctx.message.attachments[0].content_type[6:]  # Viene presa l'estensione del file come stringa
 
             # Controlla se l'esensione è valida. Estensioni valide: png, jpg, jpeg.
             # Se non è valida viene mandata una risposta la comando con il seguente messaggio. (comando interrotto)
-            if extension != 'png' and extension != 'jpg' and extension != 'jpeg':
+            if extension1 != 'png' and extension1 != 'jpg' and extension1 != 'jpeg':
                 await ctx.reply('Attached file not valid. The file must have one of those extension:'
                                 ' **png**, **jpg** or **jpeg**.')
                 return
 
             # Il file allegato viene salvato nel database
-            attachment_path = f'assets/attachments/{member.id}_{dt_string}_attachment.{extension}'
+            attachment_path = f'assets/attachments/{member.id}_{dt_string}_attachment.{extension1}'
             await ctx.message.attachments[0].save(attachment_path)
 
             # Viene eseguito il metodo get_image() fornito da images_service.py
-            image_path = get_image(member_id=member.id, attachment_path=attachment_path)
+            image_path = get_image(member_id=member.id, attachment1_path=attachment_path)
+
+        else:  # In questo caso ci sono più allegati. Nel caso noi prendiamo solo i primi due.
+
+            extension1 = ctx.message.attachments[0].content_type[6:]  # Viene presa l'estensione del file come stringa
+            extension2 = ctx.message.attachments[1].content_type[6:]
+
+            # Controlla se l'esensione è valida. Estensioni valide: png, jpg, jpeg.
+            # Se non è valida viene mandata una risposta la comando con il seguente messaggio. (comando interrotto)
+            if extension1 != 'png' and extension1 != 'jpg' and extension1 != 'jpeg':
+                await ctx.reply('Attached file n.1 not valid. The file must have one of those extension:'
+                                ' **png**, **jpg** or **jpeg**.')
+                return
+
+            if extension2 != 'png' and extension2 != 'jpg' and extension2 != 'jpeg':
+                await ctx.reply('Attached file n.2 not valid. The file must have one of those extension:'
+                                ' **png**, **jpg** or **jpeg**.')
+                return
+
+            # Il file allegato viene salvato nel database
+            attachment1_path = f'assets/attachments/{member.id}_{dt_string}_attachment1.{extension1}'
+            await ctx.message.attachments[0].save(attachment1_path)
+            attachment2_path = f'assets/attachments/{member.id}_{dt_string}_attachment2.{extension2}'
+            await ctx.message.attachments[1].save(attachment2_path)
+
+            # Viene eseguito il metodo get_image() fornito da images_service.py
+            image_path = get_image(member_id=member.id,
+                                   attachment1_path=attachment1_path,
+                                   attachment2_path=attachment2_path)
 
         # 'image_path' rappresenta il percorso dell'immagine modificata all'interno del database
 
@@ -214,12 +252,12 @@ class Image(commands.Cog):
         # Immagine
         file = discord.File(image_path, filename="image.png")
         # Creazione dell'embed
-        embed = discord.Embed(title='Reaction', description=f'Image gerenerated by {ctx.author.mention}',
+        embed = discord.Embed(title='Image', description=f'Image gerenerated by {ctx.author.mention}',
                               color=0xD8BFD8)
         # Inserimento dell'immagine nell'embed
         embed.set_image(url="attachment://image.png")
         # Inserimento della data in fondo all'embed
-        embed.set_footer(text=now.strftime("%m/%d/%Y/ %H:%M:%S"))
+        embed.set_footer(text=now.strftime("%m/%d/%Y %H:%M:%S"))
 
         # Invio dell'embed
         await ctx.send(file=file, embed=embed)
@@ -230,9 +268,17 @@ class Image(commands.Cog):
     @commands.command()
     async def reaction(self, ctx, *args, member: discord.Member = None):
 
+        # Controlla se sono state mandate file e se è stato menzionato qualcuno
+        # Se tutte e due le azioni sono state eseguite il invia un messaggio di errore
         if ctx.message.mentions and ctx.message.attachments:
             await ctx.reply("You have to either attach an image or mention a user.")
             return
+
+        # Contralla se le menzioni sono state fatte a dei ruoli. In caso invia un messaggio di errore.
+        if ctx.message.role_mentions:
+            await ctx.reply("You must mention an user.")
+            return
+
         # Creazione della data ora
         now = datetime.now()
         dt_string = now.strftime("%d_%m_%Y_%H_%M_%S")
@@ -265,7 +311,7 @@ class Image(commands.Cog):
         embed = discord.Embed(title='Reaction', description=f'Reaction gerenerated by {ctx.author.mention}',
                               color=0xD8BFD8)
         embed.set_image(url="attachment://image.png")
-        embed.set_footer(text=now.strftime("%m/%d/%Y/ %H:%M:%S"))
+        embed.set_footer(text=now.strftime("%m/%d/%Y %H:%M:%S"))
 
         await ctx.send(file=file, embed=embed)
         await ctx.message.delete()
