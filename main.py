@@ -4,19 +4,18 @@ from code import discord_token
 import discord
 from discord.ext import commands
 from waifu_service import get_url
-from openai_service import openai_api_init, get_image_with_caracal, get_image_with_attachment
+from images_service import get_image, get_image_with_attachment, get_reaction
 
 intents = discord.Intents.all()
 intents.message_content = True
 
-client = commands.Bot(command_prefix='$', intents=intents, description='Fes gaming')
+client = commands.Bot(command_prefix='$', intents=intents, description='Fes gaming', help_command=None)
 
 
 @client.event
 async def on_ready():
     activity_type = discord.ActivityType.listening
     activity_name = 'Women Punch'
-    openai_api_init()
     await client.change_presence(activity=discord.Activity(type=activity_type, name=activity_name))
     await client.add_cog(CommandErrorHandler(client))
     await client.add_cog(Test(client))
@@ -146,14 +145,21 @@ class Image(commands.Cog):
         self.bot = bot
 
     @commands.command()
-    async def image(self, ctx, *, member: discord.Member = None):
-        member = member or ctx.author
+    async def image(self, ctx, *args, member: discord.Member = None):
+        now = datetime.now()
+        dt_string = now.strftime("%d_%m_%Y_%H_%M_%S")
+
+        if ctx.message.mentions:
+            member = ctx.message.mentions[0]
+        else:
+            member = member or ctx.author
+
         if not os.path.exists(f'assets/pfps/{member.id}_pfp.png'):
             avatar_path = f'assets/pfps/{member.id}_pfp.png'
             await member.display_avatar.save(avatar_path)
 
         if not ctx.message.attachments:
-            image_path = get_image_with_caracal(member_id=member.id)
+            image_path = get_image(member_id=member.id)
 
         else:
             extension = ctx.message.attachments[0].content_type[6:]
@@ -161,14 +167,57 @@ class Image(commands.Cog):
                 await ctx.reply('Attached file not valid. The file must have one of those extension:'
                                 ' **png**, **jpg** or **jpeg**.')
                 return
-            now = datetime.now()
-            dt_string = now.strftime("%d_%m_%Y_%H_%M_%S")
 
             attachment_path = f'assets/attachments/{member.id}_{dt_string}_attachment.{extension}'
             await ctx.message.attachments[0].save(attachment_path)
-            image_path = get_image_with_attachment(member_id=member.id, attachment_path=attachment_path)
+            image_path = get_image(member_id=member.id, attachment_path=attachment_path)
 
-        await ctx.reply(file=discord.File(image_path))
+        file = discord.File(image_path, filename="image.png")
+        embed = discord.Embed(title='Reaction', description=f'Image gerenerated by {ctx.author.mention}',
+                              color=0xD8BFD8)
+        embed.set_image(url="attachment://image.png")
+        embed.set_footer(text=now.strftime("%m/%d/%Y/ %H:%M:%S"))
+
+        await ctx.send(file=file, embed=embed)
+        await ctx.message.delete()
+
+    @commands.command()
+    async def reaction(self, ctx, *args, member: discord.Member = None):
+
+        now = datetime.now()
+        dt_string = now.strftime("%d_%m_%Y_%H_%M_%S")
+
+        if ctx.message.mentions:
+            member = ctx.message.mentions[0]
+        else:
+            member = member or ctx.author
+
+        if not os.path.exists(f'assets/pfps/{member.id}_pfp.png'):
+            avatar_path = f'assets/pfps/{member.id}_pfp.png'
+            await member.display_avatar.save(avatar_path)
+
+        if not ctx.message.attachments:
+            image_path = get_reaction(member_id=member.id)
+
+        else:
+            extension = ctx.message.attachments[0].content_type[6:]
+            if extension != 'png' and extension != 'jpg' and extension != 'jpeg':
+                await ctx.reply('Attached file not valid. The file must have one of those extension:'
+                                ' **png**, **jpg** or **jpeg**.')
+                return
+
+            attachment_path = f'assets/attachments/{member.id}_{dt_string}_attachment.{extension}'
+            await ctx.message.attachments[0].save(attachment_path)
+            image_path = get_reaction(member_id=member.id, attachment_path=attachment_path)
+
+        file = discord.File(image_path, filename="image.png")
+        embed = discord.Embed(title='Reaction', description=f'Reaction gerenerated by {ctx.author.mention}',
+                              color=0xD8BFD8)
+        embed.set_image(url="attachment://image.png")
+        embed.set_footer(text=now.strftime("%m/%d/%Y/ %H:%M:%S"))
+
+        await ctx.send(file=file, embed=embed)
+        await ctx.message.delete()
 
 
 client.run(discord_token)
