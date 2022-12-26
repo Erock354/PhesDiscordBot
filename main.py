@@ -230,6 +230,9 @@ class Image(commands.Cog):
     @commands.command()
     async def reaction(self, ctx, *args, member: discord.Member = None):
 
+        if ctx.message.mentions and ctx.message.attachments:
+            await ctx.reply("You have to either attach an image or mention a user.")
+            return
         # Creazione della data ora
         now = datetime.now()
         dt_string = now.strftime("%d_%m_%Y_%H_%M_%S")
