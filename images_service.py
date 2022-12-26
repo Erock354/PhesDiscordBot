@@ -11,9 +11,12 @@ def get_image(member_id, attachment_path=None):
         img_path = attachment_path
     else:
         img_path = f"assets/caracal_images/caracal_{random.randrange(0, 100)}.png"
+
+    img = PIL.Image.open(img_path)
+    img = img.resize((512, 512))
     now = datetime.now()
     dt_string = now.strftime("%d_%m_%Y_%H_%M_%S")
-    img = PIL.Image.open(img_path)
+
     til = Image.open(f"assets/pfps/{member_id}_pfp.png")
     til = til.resize((128, 128))
     img.paste(til, (12, 372))

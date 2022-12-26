@@ -4,7 +4,7 @@ from code import discord_token
 import discord
 from discord.ext import commands
 from waifu_service import get_url
-from images_service import get_image, get_image_with_attachment, get_reaction
+from images_service import get_image, get_reaction
 
 intents = discord.Intents.all()
 intents.message_content = True
