@@ -1,4 +1,4 @@
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 import PIL
 from datetime import datetime
 import random
@@ -7,8 +7,7 @@ reaction_path = f'assets/template/reaction.png'
 
 
 # Metodo che permette di creare un immagine con sfondo a scelta, se non viene inserito nessun allegato sarà un caracal.
-def get_image(member_id, guild_id, attachment1_path=None, attachment2_path=None):
-
+def get_image(member_id, guild_id, attachment1_path=None, attachment2_path=None, text: str = ''):
     # Percorso dell'immagine da posizionare in basso a sx.
     til_path = f"assets/pfps/{member_id}_pfp.png"
 
@@ -45,6 +44,15 @@ def get_image(member_id, guild_id, attachment1_path=None, attachment2_path=None)
     draw.line((130, 382) + (206, 306), width=width, fill="red")
     draw.line((176, 306) + (210, 306), width=width, fill="red")
     draw.line((206, 336) + (206, 302), width=width, fill="red")
+
+    if not text == '':
+        font_family = "assets/fonts/fortnite.otf"
+        font_size = 48
+        position = (20, 15)
+        font = ImageFont.truetype(font_family, font_size)
+        left, top, right, bottom = draw.textbbox(position, text, font=font)
+        draw.rectangle((left - 5, top - 5, right + 5, bottom + 5), fill="black")
+        draw.text(position, text, font=font, fill="white")
 
     # 'image_path' rappresenta il percorso dell'immagine editata.
     image_path = f'assets/guilds/{guild_id}/generated_images/{dt_string}_{member_id}.png'

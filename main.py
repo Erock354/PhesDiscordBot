@@ -7,6 +7,7 @@ import discord
 from discord.ext import commands
 from waifu_service import get_url
 from images_service import get_image, get_reaction
+from data_handler import dir_init
 
 # Permessi
 intents = discord.Intents.all()
@@ -176,12 +177,7 @@ class Image(commands.Cog):
     async def image(self, ctx, *args, member: discord.Member = None, avatar_path=None):
 
         if not os.path.exists(f'assets/guilds/{ctx.message.guild.id}/'):
-            guild_path = os.path.join('assets/guilds/', f'{ctx.message.guild.id}')
-            attachments_path = os.path.join(f'assets/guilds/{ctx.message.guild.id}', 'attachments')
-            generate_images_path = os.path.join(f'assets/guilds/{ctx.message.guild.id}', 'generated_images')
-            os.mkdir(guild_path)
-            os.mkdir(attachments_path)
-            os.mkdir(generate_images_path)
+            dir_init(ctx.message.guild.id)
 
         # Controlla se sono state messe due immagini ed è stato taggato qualcuno
         if len(ctx.message.attachments) >= 2 and ctx.message.mentions:
@@ -197,6 +193,17 @@ class Image(commands.Cog):
         now = datetime.now()
         dt_string = now.strftime("%d_%m_%Y_%H_%M_%S")
 
+        # Controlla se esiste del testo nel comando. Se c'è la variabile 'text' verrà creata
+        text: str = ''
+        if args:
+            for i in args:
+                if not i[0] == '<':
+                    text = text + i + " "
+            text = text[:-1]
+            f = open(f"assets/guilds/{ctx.message.guild.id}/texts.txt", "a")
+            f.write(text + '\n')
+            f.close()
+
         # Controlla se sono state menzionate delle persone nel comando
         if ctx.message.mentions:  # Sono state menzionate persone
             member = ctx.message.mentions[0]  # 'member' è la persona menzionata
@@ -210,7 +217,7 @@ class Image(commands.Cog):
             avatar_path = f'assets/pfps/{member.id}_pfp.png'
             await member.display_avatar.save(avatar_path)
 
-            image_path = get_image(member_id=member.id, guild_id=ctx.message.guild.id)
+            image_path = get_image(member_id=member.id, guild_id=ctx.message.guild.id, text=text)
             # L'immagine di sfondo sarà un caracal
 
         elif len(ctx.message.attachments) == 1:  # Ci sono file allegati
@@ -232,7 +239,10 @@ class Image(commands.Cog):
             await ctx.message.attachments[0].save(attachment_path)
 
             # Viene eseguito il metodo get_image() fornito da images_service.py
-            image_path = get_image(member_id=member.id, guild_id=ctx.message.guild.id, attachment1_path=attachment_path)
+            image_path = get_image(member_id=member.id,
+                                   guild_id=ctx.message.guild.id,
+                                   attachment1_path=attachment_path,
+                                   text=text)
 
         else:  # In questo caso ci sono più allegati. Nel caso noi prendiamo solo i primi due.
 
@@ -261,7 +271,8 @@ class Image(commands.Cog):
             image_path = get_image(member_id=member.id,
                                    guild_id=ctx.message.guild.id,
                                    attachment1_path=attachment1_path,
-                                   attachment2_path=attachment2_path)
+                                   attachment2_path=attachment2_path,
+                                   text=text)
 
         # 'image_path' rappresenta il percorso dell'immagine modificata all'interno del database
 
@@ -289,12 +300,7 @@ class Image(commands.Cog):
     async def reaction(self, ctx, *, member: discord.Member = None, avatar_path=None):
 
         if not os.path.exists(f'assets/guilds/{ctx.message.guild.id}/'):
-            guild_path = os.path.join('assets/guilds/', f'{ctx.message.guild.id}')
-            attachments_path = os.path.join(f'assets/guilds/{ctx.message.guild.id}', 'attachments')
-            generate_images_path = os.path.join(f'assets/guilds/{ctx.message.guild.id}', 'generated_images')
-            os.mkdir(guild_path)
-            os.mkdir(attachments_path)
-            os.mkdir(generate_images_path)
+            dir_init(ctx.message.guild.id)
 
         # Controlla se sono state mandate file e se è stato menzionato qualcuno
         # Se tutte e due le azioni sono state eseguite il invia un messaggio di errore
@@ -333,7 +339,8 @@ class Image(commands.Cog):
             attachment_path = f'assets/guilds/{ctx.message.guild.id}/attachments/{member.id}_{dt_string}_attachment.{extension}'
             await ctx.message.attachments[0].save(attachment_path)
             # Il metodo invocato qui è il get_reaction() fornito dal images_service.py
-            image_path = get_reaction(member_id=member.id, guild_id=ctx.message.guild.id, attachment_path=attachment_path)
+            image_path = get_reaction(member_id=member.id, guild_id=ctx.message.guild.id,
+                                      attachment_path=attachment_path)
 
         # Creazione e invio dell'embed
         file = discord.File(image_path, filename="image.png")
@@ -368,21 +375,7 @@ class Image(commands.Cog):
     async def random(self, ctx, *, member: discord.Member = None):
 
         if not os.path.exists(f'assets/guilds/{ctx.message.guild.id}/'):
-            guild_path = os.path.join('assets/guilds/', f'{ctx.message.guild.id}')
-            attachments_path = os.path.join(f'assets/guilds/{ctx.message.guild.id}', 'attachments')
-            generate_images_path = os.path.join(f'assets/guilds/{ctx.message.guild.id}', 'generated_images')
-            os.mkdir(guild_path)
-            os.mkdir(attachments_path)
-            os.mkdir(generate_images_path)
-            await ctx.reply("The ***attachments*** directory of this server is empty.\n"
-                            "You can fill the directory by using commands like: *image*, *reaction*... with "
-                            "allegation. \n"
-                            "The more images there are in the folder, the more possible random images will be "
-                            "generated.")
-            return
-
-        member = member or ctx.author
-        now = datetime.now()
+            dir_init(ctx.message.guild.id)
 
         try:
             attachment1_path = f"assets/guilds/{ctx.message.guild.id}/attachments/" + \
@@ -397,10 +390,21 @@ class Image(commands.Cog):
                             "generated.")
             return
 
+        member = member or ctx.author
+        now = datetime.now()
+
+        rand = random.randrange(0, 2)
+        if rand == 0:
+            lines = open(f"assets/guilds/{ctx.message.guild.id}/texts.txt").read().splitlines()
+            text = random.choice(lines)
+        else:
+            text = ''
+
         image_path = get_image(member_id=member.id,
                                guild_id=ctx.message.guild.id,
                                attachment1_path=attachment1_path,
-                               attachment2_path=attachment2_path)
+                               attachment2_path=attachment2_path,
+                               text=text)
 
         file = discord.File(image_path, filename="image.png")
         embed = discord.Embed(title='Random', description=f'Random image generated by {ctx.author.mention}',
