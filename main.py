@@ -1,5 +1,7 @@
+import random
 from datetime import datetime
 import os.path
+import os
 from code import discord_token
 import discord
 from discord.ext import commands
@@ -18,10 +20,10 @@ client = commands.Bot(command_prefix='$', intents=intents, description='Fes gami
 @client.event
 async def on_ready():
     # Tipo di attività (in questo caso listening)
-    activity_type = discord.ActivityType.listening
+    activity_type = discord.ActivityType.playing
 
     # Nome dell'attività (posso metterci dentro quello che voglio)
-    activity_name = 'Women Punch'
+    activity_name = 'with your balls'
 
     # Setting della presence (Attività)
     await client.change_presence(activity=discord.Activity(type=activity_type, name=activity_name))
@@ -160,7 +162,7 @@ class CommandErrorHandler(commands.Cog):
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
         if isinstance(error, commands.CommandNotFound):
-            await ctx.reply(f"**{ctx.message.content[1:]}** doesn't exist.")
+            await ctx.reply(f"' {ctx.message.content[1:]} ' doesn't exist.")
 
 
 # Image Cog (gruppo di comandi Image)
@@ -171,7 +173,16 @@ class Image(commands.Cog):
         self.bot = bot
 
     @commands.command()
-    async def image(self, ctx, *args, member: discord.Member = None):
+    async def image(self, ctx, *args, member: discord.Member = None, avatar_path=None):
+
+        if not os.path.exists(f'assets/guilds/{ctx.message.guild.id}/'):
+            guild_path = os.path.join('assets/guilds/', f'{ctx.message.guild.id}')
+            attachments_path = os.path.join(f'assets/guilds/{ctx.message.guild.id}', 'attachments')
+            generate_images_path = os.path.join(f'assets/guilds/{ctx.message.guild.id}', 'generated_images')
+            os.mkdir(guild_path)
+            os.mkdir(attachments_path)
+            os.mkdir(generate_images_path)
+
         # Controlla se sono state messe due immagini ed è stato taggato qualcuno
         if len(ctx.message.attachments) >= 2 and ctx.message.mentions:
             await ctx.reply("You have to either attach a max of two images or an image with the mention of a user.")
@@ -192,31 +203,36 @@ class Image(commands.Cog):
         else:  # Non sono state menzionate persone
             member = member or ctx.author  # 'member' è la persona che ha invocato il comando
 
-        # Controlla se la propic di 'member' è già nel database. In caso contrario salva l'immagine nel database.
-        if not os.path.exists(f'assets/pfps/{member.id}_pfp.png'):
+        # Controlla se ci sono file allegati al comando.
+        if not ctx.message.attachments:  # Non ci sono file allegati
+
+            # Salva la propic
             avatar_path = f'assets/pfps/{member.id}_pfp.png'
             await member.display_avatar.save(avatar_path)
 
-        # Controlla se ci sono file allegati al comando.
-        if not ctx.message.attachments:  # Non ci sono file allegati
-            image_path = get_image(member_id=member.id)  # L'immagine di sfondo sarà un caracal
+            image_path = get_image(member_id=member.id, guild_id=ctx.message.guild.id)
+            # L'immagine di sfondo sarà un caracal
 
         elif len(ctx.message.attachments) == 1:  # Ci sono file allegati
-            extension1 = ctx.message.attachments[0].content_type[6:]  # Viene presa l'estensione del file come stringa
+
+            avatar_path = f'assets/pfps/{member.id}_pfp.png'
+            await member.display_avatar.save(avatar_path)
+
+            extension = ctx.message.attachments[0].content_type[6:]  # Viene presa l'estensione del file come stringa
 
             # Controlla se l'esensione è valida. Estensioni valide: png, jpg, jpeg.
             # Se non è valida viene mandata una risposta la comando con il seguente messaggio. (comando interrotto)
-            if extension1 != 'png' and extension1 != 'jpg' and extension1 != 'jpeg':
+            if extension != 'png' and extension != 'jpg' and extension != 'jpeg':
                 await ctx.reply('Attached file not valid. The file must have one of those extension:'
                                 ' **png**, **jpg** or **jpeg**.')
                 return
 
             # Il file allegato viene salvato nel database
-            attachment_path = f'assets/attachments/{member.id}_{dt_string}_attachment.{extension1}'
+            attachment_path = f'assets/guilds/{ctx.message.guild.id}/attachments/{member.id}_{dt_string}_attachment.{extension} '
             await ctx.message.attachments[0].save(attachment_path)
 
             # Viene eseguito il metodo get_image() fornito da images_service.py
-            image_path = get_image(member_id=member.id, attachment1_path=attachment_path)
+            image_path = get_image(member_id=member.id, guild_id=ctx.message.guild.id, attachment1_path=attachment_path)
 
         else:  # In questo caso ci sono più allegati. Nel caso noi prendiamo solo i primi due.
 
@@ -236,13 +252,14 @@ class Image(commands.Cog):
                 return
 
             # Il file allegato viene salvato nel database
-            attachment1_path = f'assets/attachments/{member.id}_{dt_string}_attachment1.{extension1}'
+            attachment1_path = f'assets/guilds/{ctx.message.guild.id}/attachments/{member.id}_{dt_string}_attachment1.{extension1}'
             await ctx.message.attachments[0].save(attachment1_path)
-            attachment2_path = f'assets/attachments/{member.id}_{dt_string}_attachment2.{extension2}'
+            attachment2_path = f'assets/guilds/{ctx.message.guild.id}/attachments/{member.id}_{dt_string}_attachment2.{extension2}'
             await ctx.message.attachments[1].save(attachment2_path)
 
             # Viene eseguito il metodo get_image() fornito da images_service.py
             image_path = get_image(member_id=member.id,
+                                   guild_id=ctx.message.guild.id,
                                    attachment1_path=attachment1_path,
                                    attachment2_path=attachment2_path)
 
@@ -263,10 +280,21 @@ class Image(commands.Cog):
         await ctx.send(file=file, embed=embed)
         # Cancellazione del comando inviato
         await ctx.message.delete()
+        # Cancellazione dell'avatar
+        if avatar_path is not None:
+            os.remove(avatar_path)
 
     # Funzionamento molto simile al comando image()
     @commands.command()
-    async def reaction(self, ctx, *args, member: discord.Member = None):
+    async def reaction(self, ctx, *, member: discord.Member = None, avatar_path=None):
+
+        if not os.path.exists(f'assets/guilds/{ctx.message.guild.id}/'):
+            guild_path = os.path.join('assets/guilds/', f'{ctx.message.guild.id}')
+            attachments_path = os.path.join(f'assets/guilds/{ctx.message.guild.id}', 'attachments')
+            generate_images_path = os.path.join(f'assets/guilds/{ctx.message.guild.id}', 'generated_images')
+            os.mkdir(guild_path)
+            os.mkdir(attachments_path)
+            os.mkdir(generate_images_path)
 
         # Controlla se sono state mandate file e se è stato menzionato qualcuno
         # Se tutte e due le azioni sono state eseguite il invia un messaggio di errore
@@ -288,12 +316,13 @@ class Image(commands.Cog):
             member = ctx.message.mentions[0]
         else:
             member = member or ctx.author
-        if not os.path.exists(f'assets/pfps/{member.id}_pfp.png'):
+
+        if not ctx.message.attachments:
             avatar_path = f'assets/pfps/{member.id}_pfp.png'
             await member.display_avatar.save(avatar_path)
-        if not ctx.message.attachments:
             # Il metodo invocato qui è il get_reaction() fornito dal images_service.py
-            image_path = get_reaction(member_id=member.id)
+            image_path = get_reaction(member_id=member.id, guild_id=ctx.message.guild.id)
+
         else:
             # Controllo dell'estensione
             extension = ctx.message.attachments[0].content_type[6:]
@@ -301,10 +330,10 @@ class Image(commands.Cog):
                 await ctx.reply('Attached file not valid. The file must have one of those extension:'
                                 ' **png**, **jpg** or **jpeg**.')
                 return
-            attachment_path = f'assets/attachments/{member.id}_{dt_string}_attachment.{extension}'
+            attachment_path = f'assets/guilds/{ctx.message.guild.id}/attachments/{member.id}_{dt_string}_attachment.{extension}'
             await ctx.message.attachments[0].save(attachment_path)
             # Il metodo invocato qui è il get_reaction() fornito dal images_service.py
-            image_path = get_reaction(member_id=member.id, attachment_path=attachment_path)
+            image_path = get_reaction(member_id=member.id, guild_id=ctx.message.guild.id, attachment_path=attachment_path)
 
         # Creazione e invio dell'embed
         file = discord.File(image_path, filename="image.png")
@@ -315,6 +344,88 @@ class Image(commands.Cog):
 
         await ctx.send(file=file, embed=embed)
         await ctx.message.delete()
+        if avatar_path is not None:
+            os.remove(avatar_path)
+
+    @commands.command()
+    async def avatar(self, ctx, *args, member: discord.Member = None):
+
+        now = datetime.now()
+
+        if ctx.message.mentions:
+            member = ctx.message.mentions[0]
+        else:
+            member = member or ctx.author
+
+        url = member.display_avatar.url
+        embed = discord.Embed(title='Avatar', description=f'This is {member.mention} avatar',
+                              color=0xD8BFD8)
+        embed.set_image(url=url)
+        embed.set_footer(text=now.strftime("%m/%d/%Y %H:%M:%S"))
+        await ctx.send(embed=embed)
+
+    @commands.command()
+    async def random(self, ctx, *, member: discord.Member = None):
+
+        if not os.path.exists(f'assets/guilds/{ctx.message.guild.id}/'):
+            guild_path = os.path.join('assets/guilds/', f'{ctx.message.guild.id}')
+            attachments_path = os.path.join(f'assets/guilds/{ctx.message.guild.id}', 'attachments')
+            generate_images_path = os.path.join(f'assets/guilds/{ctx.message.guild.id}', 'generated_images')
+            os.mkdir(guild_path)
+            os.mkdir(attachments_path)
+            os.mkdir(generate_images_path)
+            await ctx.reply("The ***attachments*** directory of this server is empty.\n"
+                            "You can fill the directory by using commands like: *image*, *reaction*... with "
+                            "allegation. \n"
+                            "The more images there are in the folder, the more possible random images will be "
+                            "generated.")
+            return
+
+        member = member or ctx.author
+        now = datetime.now()
+
+        try:
+            attachment1_path = f"assets/guilds/{ctx.message.guild.id}/attachments/" + \
+                               random.choice(os.listdir(f"assets/guilds/{ctx.message.guild.id}/attachments"))
+            attachment2_path = f"assets/guilds/{ctx.message.guild.id}/attachments/" + \
+                               random.choice(os.listdir(f"assets/guilds/{ctx.message.guild.id}/attachments"))
+        except IndexError:
+            await ctx.reply("The ***attachments*** directory of this server is empty.\n"
+                            "You can fill the directory by using commands like: *image*, *reaction*... with "
+                            "allegation. \n"
+                            "The more images there are in the folder, the more possible random images will be "
+                            "generated.")
+            return
+
+        image_path = get_image(member_id=member.id,
+                               guild_id=ctx.message.guild.id,
+                               attachment1_path=attachment1_path,
+                               attachment2_path=attachment2_path)
+
+        file = discord.File(image_path, filename="image.png")
+        embed = discord.Embed(title='Random', description=f'Random image generated by {ctx.author.mention}',
+                              color=0xD8BFD8)
+
+        embed.set_image(url="attachment://image.png")
+
+        embed.set_footer(text=now.strftime("%m/%d/%Y %H:%M:%S"))
+
+        await ctx.send(file=file, embed=embed)
+
+    @random.error
+    async def random_error(self, ctx, error):
+        print(error)
+        await ctx.send('Something went wrong')
+
+    @image.error
+    async def image_error(self, ctx, error):
+        print(error)
+        await ctx.send('Something went wrong')
+
+    @reaction.error
+    async def reaction_error(self, ctx, error):
+        print(error)
+        await ctx.send('Something went wrong')
 
 
 client.run(discord_token)
