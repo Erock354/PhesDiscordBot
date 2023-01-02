@@ -24,6 +24,10 @@ def get_image(member_id, guild_id, attachment1_path=None, attachment2_path=None,
 
     # Viene creata un immagine e viene ridimensionata a 512x512
     img = PIL.Image.open(img_path)
+    if img.format is 'PNG':
+        # and is not RGBA
+        if img.mode is not 'RGBA':
+            img = img.convert("RGBA")
     img = img.resize((512, 512))
 
     # Creazione data ora
@@ -32,6 +36,12 @@ def get_image(member_id, guild_id, attachment1_path=None, attachment2_path=None,
 
     # Viene creata l'immagine che poi andrà in basso a sinistra, anche essa verrà ridimensionata
     til = Image.open(til_path)
+    
+    if til.format is 'PNG':
+        # and is not RGBA
+        if til.mode is not 'RGBA':
+            til = til.convert("RGBA")
+
     til = til.resize((128, 128))
 
     # Questo metodo inserisce un immagine in un altra (til dentro img) alle coordinate relative
@@ -72,8 +82,20 @@ def get_reaction(member_id, guild_id, attachment_path=None):
     now = datetime.now()
     dt_string = now.strftime("%d_%m_%Y_%H_%M_%S")
     img = PIL.Image.open(reaction_path)
+    if img.format is 'PNG':
+        # and is not RGBA
+        if img.mode is not 'RGBA':
+            img = img.convert("RGBA")
     til1 = Image.open(til_path)
+    if til1.format is 'PNG':
+        # and is not RGBA
+        if til1.mode is not 'RGBA':
+            til1 = til1.convert("RGBA")
     til2 = Image.open(til_path)
+    if til2.format is 'PNG':
+        # and is not RGBA
+        if til2.mode is not 'RGBA':
+            til2 = til2.convert("RGBA")
 
     til1 = til1.resize((210, 70))
     img.paste(til1, (135, 20))
