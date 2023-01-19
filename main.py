@@ -1,20 +1,22 @@
 import random
 from datetime import datetime
+import urllib.request
 import os.path
 import os
+
 from code import discord_token
 import discord
 from discord.ext import commands
-from waifu_service import get_url
+from waifu_service import get_url, get_post
 from images_service import get_image, get_reaction
 from data_handler import dir_init, log
 
 # Permessi
 intents = discord.Intents.all()
 intents.message_content = True
-
+COMMAND_PREFIX = '$'
 # Setting del bot
-client = commands.Bot(command_prefix='$', intents=intents, description='Fes gaming', help_command=None)
+client = commands.Bot(command_prefix=COMMAND_PREFIX, intents=intents, description='Fes gaming', help_command=None)
 
 
 # Questo evento viene eseguito appena viene avviato il Bot
@@ -24,10 +26,10 @@ async def on_ready():
     activity_type = discord.ActivityType.playing
 
     # Nome dell'attività (posso metterci dentro quello che voglio)
-    activity_name = 'with your balls'
+    activity_name = f'{COMMAND_PREFIX}help if you need me :D'
 
     # Setting della presence (Attività)
-    await client.change_presence(activity=discord.Activity(type=activity_type, name=activity_name))
+    await client.change_presence(activity=discord.CustomActivity(type=activity_type, name=activity_name))
 
     # Inserimento dei Cog (gruppi di comandi, eventi...)
     await client.add_cog(CommandErrorHandler(client))
@@ -149,7 +151,7 @@ class Test(commands.Cog):
         if arg1 is None:
             embed = discord.Embed(title='Help',
                                   description=f'Here you can find the list of commands divided into categories.\n'
-                                              f'Use *$help <command_name>* for more details.',
+                                              f'Use *{COMMAND_PREFIX}help <command_name>* for more details.',
                                   color=0xD8BFD8)
             embed.add_field(name="Anime commands (SFW)",
                             value='waifu\n'
@@ -168,13 +170,13 @@ class Test(commands.Cog):
                             inline=True)
             await ctx.send(embed=embed)
         elif arg1 in self.commad_details:
-            embed = discord.Embed(title='$' + arg1,
+            embed = discord.Embed(title=f'{COMMAND_PREFIX}' + arg1,
                                   description=self.commad_details[arg1],
                                   color=0xD8BFD8
                                   )
             await ctx.send(embed=embed)
         else:
-            await ctx.reply(f"Command ' {arg1} ' doesn't exist.")
+            await ctx.reply(f"Command ' {COMMAND_PREFIX}{arg1} ' doesn't exist.")
         log(command_name='help',
             member=ctx.author,
             guild_id=ctx.message.guild.id,
@@ -307,6 +309,46 @@ class Anime(commands.Cog):
         print(error)
         await ctx.send('Something went wrong')
 
+    @commands.command()
+    @commands.is_nsfw()
+    @commands.cooldown(1, 10, commands.BucketType.user)
+    async def hsearch(self, ctx, *args):
+
+        if len(args) >= 3:
+            await ctx.reply("Max 2 arguments")
+            return
+
+        post = get_post(args)
+
+        if post == 404:
+            await ctx.reply("Search error, retry.\n")
+            return
+
+        if post[1] == 'img':
+            await ctx.reply(post[0])
+        else:
+            video_path = 'assets/pfps/hsearch.' + post[1]
+            urllib.request.urlretrieve(post[0], video_path)
+            await ctx.send(file=discord.File(video_path))
+            os.remove(video_path)
+
+        log(command_name='hsearch',
+            member=ctx.author,
+            guild_id=ctx.message.guild.id,
+            time=datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+            )
+
+    @hsearch.error
+    async def hsearch_error(self, ctx, error):
+        if isinstance(error, commands.errors.NSFWChannelRequired):
+            return await ctx.reply("NSFW Command. You must use this command in an Age-Restricted channel.")
+
+        if isinstance(error, commands.CommandOnCooldown):
+            return await ctx.reply(f"Retry this command after {error.retry_after} seconds")
+        
+        print(error)
+        await ctx.send('Something went wrong')
+
 
 class CommandErrorHandler(commands.Cog):
 
@@ -316,7 +358,7 @@ class CommandErrorHandler(commands.Cog):
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
         if isinstance(error, commands.CommandNotFound):
-            await ctx.reply(f"Command ' {ctx.message.content[1:]} ' doesn't exist.")
+            return await ctx.reply(f"Command ' {ctx.message.content[1:]} ' doesn't exist.")
 
 
 # Image Cog (gruppo di comandi Image)
@@ -520,7 +562,7 @@ class Image(commands.Cog):
             )
 
     @commands.command()
-    async def avatar(self, ctx, *args, member: discord.Member = None):
+    async def avatar(self, ctx, *, member: discord.Member = None):
 
         now = datetime.now()
 
