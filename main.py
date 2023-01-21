@@ -1,4 +1,5 @@
 import random
+import traceback
 from datetime import datetime
 import urllib.request
 import os.path
@@ -10,6 +11,7 @@ from discord.ext import commands
 from waifu_service import get_url, get_post
 from images_service import get_image, get_reaction
 from data_handler import dir_init, log
+from video_service import get_video
 
 # Permessi
 intents = discord.Intents.all()
@@ -36,6 +38,7 @@ async def on_ready():
     await client.add_cog(Test(client))
     await client.add_cog(Anime(client))
     await client.add_cog(Image(client))
+    await client.add_cog(Video(client))
 
     # Appena viene avviato manda un messaggio nel terminale
     print('I am ready for the use')
@@ -367,6 +370,7 @@ class CommandErrorHandler(commands.Cog):
 class Image(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.valid_img_ext = ['png', 'jpeg', 'jpg']
 
     @commands.command()
     async def image(self, ctx, *args, member: discord.Member = None, avatar_path=None):
@@ -424,7 +428,7 @@ class Image(commands.Cog):
 
             # Controlla se l'esensione è valida. Estensioni valide: png, jpg, jpeg.
             # Se non è valida viene mandata una risposta la comando con il seguente messaggio. (comando interrotto)
-            if extension != 'png' and extension != 'jpg' and extension != 'jpeg':
+            if not self.valid_img_ext.__contains__(extension):
                 await ctx.reply('Attached file not valid. The file must have one of those extension:'
                                 ' **png**, **jpg** or **jpeg**.')
                 return
@@ -446,13 +450,9 @@ class Image(commands.Cog):
 
             # Controlla se l'esensione è valida. Estensioni valide: png, jpg, jpeg.
             # Se non è valida viene mandata una risposta la comando con il seguente messaggio. (comando interrotto)
-            if extension1 != 'png' and extension1 != 'jpg' and extension1 != 'jpeg':
-                await ctx.reply('Attached file n.1 not valid. The file must have one of those extension:'
-                                ' **png**, **jpg** or **jpeg**.')
-                return
-
-            if extension2 != 'png' and extension2 != 'jpg' and extension2 != 'jpeg':
-                await ctx.reply('Attached file n.2 not valid. The file must have one of those extension:'
+            # Controllo dell'estensione
+            if not self.valid_img_ext.__contains__(extension1) or not self.valid_img_ext.__contains__(extension1):
+                await ctx.reply('Attached file not valid. The file must have one of those extension:'
                                 ' **png**, **jpg** or **jpeg**.')
                 return
 
@@ -531,12 +531,15 @@ class Image(commands.Cog):
             image_path = get_reaction(member_id=member.id, guild_id=ctx.message.guild.id)
 
         else:
+
             # Controllo dell'estensione
             extension = ctx.message.attachments[0].content_type[6:]
-            if extension != 'png' and extension != 'jpg' and extension != 'jpeg':
+
+            if not self.valid_img_ext.__contains__(extension):
                 await ctx.reply('Attached file not valid. The file must have one of those extension:'
                                 ' **png**, **jpg** or **jpeg**.')
                 return
+
             attachment_path = f'assets/guilds/{ctx.message.guild.id}/attachments/{member.id}_{dt_string}_attachment.{extension}'
             await ctx.message.attachments[0].save(attachment_path)
             # Il metodo invocato qui è il get_reaction() fornito dal images_service.py
@@ -647,6 +650,74 @@ class Image(commands.Cog):
     @reaction.error
     async def reaction_error(self, ctx, error):
         print(error)
+        await ctx.send('Something went wrong')
+
+
+class Video(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+        self.valid_img_ext = ['png', 'jpeg', 'jpg']
+        self.valid_audio_ext = ['m4a', 'x-wav', 'ogg', 'mpeg']
+
+    @commands.command()
+    async def video(self, ctx, *, member: discord.Member = None):
+
+        member = member or ctx.author
+
+        if not os.path.exists(f'assets/guilds/{ctx.message.guild.id}/'):
+            dir_init(ctx.message.guild.id)
+
+        if not len(ctx.message.attachments) == 2:
+            await ctx.reply("You must send 2 allegation with the command messege. "
+                            "First attachment is an image file and the second is an audio file.")
+            return
+
+        img_extension = ctx.message.attachments[0].content_type[6:]
+        audio_extension = ctx.message.attachments[1].content_type[6:]
+
+        if not self.valid_img_ext.__contains__(img_extension):
+            await ctx.reply('Attached file not valid. The file must have one of those extension:'
+                            ' **png**, **jpg** or **jpeg**.')
+            return
+
+        if not self.valid_audio_ext.__contains__(audio_extension):
+            await ctx.reply('Attached file not valid. The file must have one of those extension:'
+                            ' **wav**, **mp3**, **ogg** or **m4a**.')
+            return
+
+        # Creazione della data ora
+        now = datetime.now()
+        dt_string = now.strftime("%d_%m_%Y_%H_%M_%S")
+
+        f'assets/guilds/{ctx.message.guild.id}/attachments/{member.id}_{dt_string}_attachment.'
+
+        img_path = f'assets/guilds/{ctx.message.guild.id}/attachments/{member.id}_{dt_string}_attachment.{img_extension}'
+        audio_path = f'assets/guilds/{ctx.message.guild.id}/audio/{member.id}_{dt_string}_attachment.{audio_extension}'
+
+        await ctx.message.attachments[0].save(img_path)
+        await ctx.message.attachments[1].save(audio_path)
+
+        video_path = get_video(guild_id=ctx.message.guild.id, image_path=img_path, audio_path=audio_path)
+
+        if video_path == 400:
+            os.remove(img_path)
+            os.remove(audio_path)
+            await ctx.reply('Audio must be less than 30 seconds long')
+            return
+
+        if video_path == 401:
+            os.remove(img_path)
+            os.remove(audio_path)
+            await ctx.reply('Audio must be more than 2 seconds long')
+            return
+
+        await ctx.send(content=f'User {member.mention} generated this video', file=discord.File(video_path))
+        await ctx.message.delete()
+        os.remove(video_path)
+
+    @video.error
+    async def video_error(self, ctx, error):
+        traceback.print_exc(error)
         await ctx.send('Something went wrong')
 
 

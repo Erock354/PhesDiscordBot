@@ -65,7 +65,7 @@ def get_image(member_id, guild_id, attachment1_path=None, attachment2_path=None,
         draw.text(position, text, font=font, fill="white")
 
     # 'image_path' rappresenta il percorso dell'immagine editata.
-    image_path = f'assets/guilds/{guild_id}/generated_images/{dt_string}_{member_id}.png'
+    image_path = f'assets/guilds/{guild_id}/generated_stuff/{dt_string}_{member_id}.png'
     # Salvataggio dell'immagine
     img.save(image_path)
 
@@ -102,6 +102,6 @@ def get_reaction(member_id, guild_id, attachment_path=None):
 
     til2 = til2.resize((616, 350))
     img.paste(til2, (10, 110))
-    image_path = f'assets/guilds/{guild_id}/generated_images/{dt_string}_{member_id}.png'
+    image_path = f'assets/guilds/{guild_id}/generated_stuff/{dt_string}_{member_id}.png'
     img.save(image_path)
     return image_path

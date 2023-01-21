@@ -1,16 +1,17 @@
 import os
-
 import discord
 
 
 def dir_init(guild_id):
     guild_path = os.path.join('assets/guilds/', f'{guild_id}')
     attachments_path = os.path.join(f'assets/guilds/{guild_id}', 'attachments')
-    generate_images_path = os.path.join(f'assets/guilds/{guild_id}', 'generated_images')
+    generated_images_path = os.path.join(f'assets/guilds/{guild_id}', 'generated_stuff')
+    audio_path = os.path.join(f'assets/guilds/{guild_id}', 'audio')
 
     os.mkdir(guild_path)
     os.mkdir(attachments_path)
-    os.mkdir(generate_images_path)
+    os.mkdir(generated_images_path)
+    os.mkdir(audio_path)
 
     f = open(f"assets/guilds/{guild_id}/texts.txt", "a")
     f.write('balls\n')
