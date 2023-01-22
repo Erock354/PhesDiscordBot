@@ -313,7 +313,7 @@ class Anime(commands.Cog):
         await ctx.send('Something went wrong')
 
     @commands.command()
-    @commands.is_nsfw()
+    # @commands.is_nsfw()
     @commands.cooldown(1, 10, commands.BucketType.user)
     async def hsearch(self, ctx, *args):
 
@@ -348,7 +348,7 @@ class Anime(commands.Cog):
 
         if isinstance(error, commands.CommandOnCooldown):
             return await ctx.reply(f"Retry this command after {error.retry_after} seconds")
-        
+
         print(error)
         await ctx.send('Something went wrong')
 
@@ -668,7 +668,7 @@ class Video(commands.Cog):
             dir_init(ctx.message.guild.id)
 
         if not len(ctx.message.attachments) == 2:
-            await ctx.reply("You must send 2 allegation with the command messege. "
+            await ctx.reply("You must send 2 allegation with the command message. "
                             "First attachment is an image file and the second is an audio file.")
             return
 
@@ -717,6 +717,37 @@ class Video(commands.Cog):
 
     @video.error
     async def video_error(self, ctx, error):
+        traceback.print_exc(error)
+        await ctx.send('Something went wrong')
+
+    @commands.command()
+    async def video_random(self, ctx, *, member: discord.Member = None):
+
+        member = member or ctx.author
+
+        if not os.path.exists(f'assets/guilds/{ctx.message.guild.id}/'):
+            dir_init(ctx.message.guild.id)
+
+        try:
+            img_path = f"assets/guilds/{ctx.message.guild.id}/attachments/" + \
+                       random.choice(os.listdir(f"assets/guilds/{ctx.message.guild.id}/attachments"))
+            audio_path = f"assets/guilds/{ctx.message.guild.id}/audio/" + \
+                         random.choice(os.listdir(f"assets/guilds/{ctx.message.guild.id}/audio"))
+        except IndexError:
+            await ctx.reply("The ***attachments*** directory of this server is empty.\n"
+                            "You can fill the directory by using commands like: *image*, *reaction*... with "
+                            "allegation. \n"
+                            "The more images there are in the folder, the more possible random images will be "
+                            "generated.")
+            return
+
+        video_path = get_video(guild_id=ctx.message.guild.id, image_path=img_path, audio_path=audio_path)
+
+        await ctx.reply(content=f'User {member.mention} generated this video', file=discord.File(video_path))
+        os.remove(video_path)
+
+    @video_random.error
+    async def video_random_error(self, ctx, error):
         traceback.print_exc(error)
         await ctx.send('Something went wrong')
 
