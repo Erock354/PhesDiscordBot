@@ -31,7 +31,7 @@ async def on_ready():
     activity_name = f'{COMMAND_PREFIX}help if you need me :D'
 
     # Setting della presence (Attività)
-    await client.change_presence(activity=discord.CustomActivity(type=activity_type, name=activity_name))
+    await client.change_presence(activity=discord.Activity(type=activity_type, name=activity_name))
 
     # Inserimento dei Cog (gruppi di comandi, eventi...)
     await client.add_cog(CommandErrorHandler(client))
@@ -66,6 +66,19 @@ class Test(commands.Cog):
             'megumin': 'This command generate a pic of Megumin from Konosuba',
             'bully': 'This command generate an anime bully gif',
             'cuddle': 'This command generate an anime cuddle gif',
+
+            'hsearch': "This command allows you to search for anime content (images, video...) using specific tags.\n"
+                       "All the content sent are from https://danbooru.donmai.us/\n\n"
+                       "This command accept max two arguments. The arguments in this command represent the tags of "
+                       "the content you are looking for.\n"
+                       "This command used without arguments send random content\n"
+                       "If you want to use multi-word tags: *genshin_impact*, *league_of_legends*, *kiryuu_kazuma*.\n"
+                       "If a character name you are looking for is in multiple games/animes: *lulu_("
+                       "league_of_legends)*, *lulu_(tales)*\n\n"
+                       "Based on the tags sent, a list of contents will be generated, what will be sent will be "
+                       "chosen randomly from this list.\n\n "
+                       "**Recommendations**\n"
+                       "NSFW command.",
 
             'image': 'Using this command you can generate an image composed by 2 pictures, an arrow and text on the '
                      'top (optional).\n '
@@ -125,14 +138,33 @@ class Test(commands.Cog):
                         "Don't share private images. The attached image will be saved in a specific folder created for "
                         'this server.\n',
 
-            'random': "This command it's the same as image but with random image and random text.\n"
-                      "The random image will be taken from the specific directory of this server where are stored the "
+            'rimage': "This command it's the same as image but with random image and random text.\n"
+                      "The random image will be taken from the specific folder of this server where are stored the "
                       "attached images.\n"
                       "The random text will be taken from the specific file of this server where are stored all the "
                       "text the users used for the image command.\n\n"
-                      "**Reccomanation**\n"
+                      "**Recommendation**\n"
                       "Before use this command, you must use the command _$image_ at least once times with attached "
-                      "images and text."
+                      "images and text.",
+
+            'video': "This command generate a video composed by an image and an audio\n\n"
+                     "this command needs 2 attached files to work.\n"
+                     "The first must be an image.\n"
+                     "The second must be an audio. (min 1 sec, max 30 sec)\n\n"
+                     "The generated video will be as long as the sent audio and will have two fps.\n\n"
+                     "**Recommendations**\n"
+                     "Don't share private images. The attached image will be saved in a specific folder created for "
+                     "this server.\n"
+                     "Don't share private audio. The attached audio will be saved in a specific folder created for "
+                     "this server.",
+            
+            'rvideo': "This command it's the same as video but with random image and audio.\n"
+                      "The random image will be taken from the specific folder of this server where are stored the "
+                      "attached images.\n"
+                      "The random audio will be taken from the specific folder of this server where are stored the "
+                      "attached audio.\n\n"
+                      "**Recommendation**\n"
+                      "Before use this command, you must use the command _$video_ at least once times with attached.",
         }
 
     # Comando hello. Per creare dei comandi all'interno dei Cog devi usare il decoratore @commands.command()
@@ -162,15 +194,25 @@ class Test(commands.Cog):
                                   'shinobu\n'
                                   'megumin\n'
                                   'bully\n'
-                                  'cuddle',
+                                  'cuddle\n',
+                            inline=True)
+
+            embed.add_field(name="Anime commands (NSFW)",
+                            value='hsearch\n',
                             inline=True)
 
             embed.add_field(name="Image commands",
                             value='image\n'
                                   'reaction\n'
                                   'avatar\n'
-                                  'random',
+                                  'rimage',
                             inline=True)
+
+            embed.add_field(name="Video commands",
+                            value='video\n'
+                                  'rvideo\n',
+                            inline=True)
+
             await ctx.send(embed=embed)
         elif arg1 in self.commad_details:
             embed = discord.Embed(title=f'{COMMAND_PREFIX}' + arg1,
@@ -587,7 +629,7 @@ class Image(commands.Cog):
             )
 
     @commands.command()
-    async def random(self, ctx, *, member: discord.Member = None):
+    async def rimage(self, ctx, *, member: discord.Member = None):
 
         if not os.path.exists(f'assets/guilds/{ctx.message.guild.id}/'):
             dir_init(ctx.message.guild.id)
@@ -598,12 +640,13 @@ class Image(commands.Cog):
             attachment2_path = f"assets/guilds/{ctx.message.guild.id}/attachments/" + \
                                random.choice(os.listdir(f"assets/guilds/{ctx.message.guild.id}/attachments"))
         except IndexError:
-            await ctx.reply("The ***attachments*** directory of this server is empty.\n"
+            await ctx.reply("The ***attachments*** folder of this server is empty.\n"
                             "You can fill the directory by using commands like: *image*, *reaction*... with "
                             "allegation. \n"
                             "The more images there are in the folder, the more possible random images will be "
                             "generated.")
             return
+
 
         member = member or ctx.author
         now = datetime.now()
@@ -637,7 +680,7 @@ class Image(commands.Cog):
             time=datetime.now().strftime("%d/%m/%Y %H:%M:%S")
             )
 
-    @random.error
+    @rimage.error
     async def random_error(self, ctx, error):
         print(error)
         await ctx.send('Something went wrong')
@@ -721,7 +764,7 @@ class Video(commands.Cog):
         await ctx.send('Something went wrong')
 
     @commands.command()
-    async def video_random(self, ctx, *, member: discord.Member = None):
+    async def rvideo(self, ctx, *, member: discord.Member = None):
 
         member = member or ctx.author
 
@@ -731,13 +774,23 @@ class Video(commands.Cog):
         try:
             img_path = f"assets/guilds/{ctx.message.guild.id}/attachments/" + \
                        random.choice(os.listdir(f"assets/guilds/{ctx.message.guild.id}/attachments"))
-            audio_path = f"assets/guilds/{ctx.message.guild.id}/audio/" + \
-                         random.choice(os.listdir(f"assets/guilds/{ctx.message.guild.id}/audio"))
+
         except IndexError:
-            await ctx.reply("The ***attachments*** directory of this server is empty.\n"
+            await ctx.reply("The ***attachments*** folder of this server is empty.\n"
                             "You can fill the directory by using commands like: *image*, *reaction*... with "
                             "allegation. \n"
                             "The more images there are in the folder, the more possible random images will be "
+                            "generated.")
+            return
+        
+        try:
+            audio_path = f"assets/guilds/{ctx.message.guild.id}/audio/" + \
+                         random.choice(os.listdir(f"assets/guilds/{ctx.message.guild.id}/audio"))
+        except IndexError:
+            await ctx.reply("The ***audio*** folder of this server is empty.\n"
+                            "You can fill the directory by using command video with "
+                            "allegation. \n"
+                            "The more audio there are in the folder, the more possible random video will be "
                             "generated.")
             return
 
@@ -746,8 +799,8 @@ class Video(commands.Cog):
         await ctx.reply(content=f'User {member.mention} generated this video', file=discord.File(video_path))
         os.remove(video_path)
 
-    @video_random.error
-    async def video_random_error(self, ctx, error):
+    @rvideo.error
+    async def rvideo_error(self, ctx, error):
         traceback.print_exc(error)
         await ctx.send('Something went wrong')
 
